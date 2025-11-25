@@ -1,1 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Device Monitoring Dashboard</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for better scroll and aesthetics */
+        :root {
+            --primary-color: #3b82f6; /* Tailwind blue-500 */
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Tailwind gray-100 */
+        }
+        .card-shadow {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .status-online {
+            animation: pulse-green 2s infinite;
+        }
+        .status-offline {
+            background-color: #ef4444; /* Tailwind red-500 */
+        }
+        .icon-small {
+            width: 1.25rem;
+            height: 1.25rem;
+        }
 
+        /* Keyframes for the pulsing effect on online devices */
+        @keyframes pulse-green {
+            0%, 100% {
+                background-color: #10b981; /* Tailwind emerald-500 */
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            }
+            50% {
+                box-shadow: 0 0 0 4px rgba(16, 185, 129, 0);
+            }
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary': '#3b82f6',
+                        'secondary': '#10b981',
+                        'danger': '#ef4444',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 mr-2 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M9.5 14.5l5-5m0 5l-5-5"></path></svg>
+                IoT Practice Team Dashboard
+            </h1>
+            <p class="text-gray-500">Real-time monitoring and control panel for connected devices.</p>
+        </header>
+
+        <!-- Top Controls and Summary -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+            
+            <!-- Summary Statistics -->
+            <div id="summary-stats" class="lg:col-span-2 grid grid-cols-2 gap-4">
+                <div class="bg-white p-4 rounded-xl card-shadow border-t-4 border-secondary">
+                    <p class="text-sm font-medium text-gray-500">Devices Online</p>
+                    <p id="stat-online" class="text-3xl font-bold text-secondary mt-1">0</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl card-shadow border-t-4 border-danger">
+                    <p class="text-sm font-medium text-gray-500">Critical Alerts</p>
+                    <p id="stat-alerts" class="text-3xl font-bold text-danger mt-1">0</p>
+                </div>
+            </div>
+
+            <!-- Auto-Refresh Control -->
+            <div class="bg-white p-4 rounded-xl card-shadow lg:col-span-1">
+                <label for="refresh-interval" class="block text-sm font-medium text-gray-700 mb-2">Auto-Refresh Interval</label>
+                <select id="refresh-interval" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md">
+                    <option value="0">Off</option>
+                    <option value="5" selected>5 Seconds</option>
+                    <option value="10">10 Seconds</option>
+                    <option value="30">30 Seconds</option>
+                    <option value="60">60 Seconds</option>
+                </select>
+            </div>
+
+            <!-- Add Device Button -->
+            <div class="lg:col-span-1 flex items-end">
+                <button onclick="addDemoDevice()" class="w-full bg-primary hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-xl transition duration-150 ease-in-out card-shadow flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    Add Demo Device
+                </button>
+            </div>
+        </div>
+        
+        <!-- Dashboard Grid and Alerts Panel -->
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            
+            <!-- Device Grid -->
+            <div class="lg:col-span-4">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">Device Overview</h2>
+                <div id="device-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <!-- Device Cards will be injected here by JavaScript -->
+                    <p id="no-devices-message" class="text-center text-gray-500 col-span-full py-8 italic">No devices added yet. Click "Add Demo Device" to begin.</p>
+                </div>
+            </div>
+            
+            <!-- Alerts Panel -->
+            <div class="lg:col-span-1">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">System Alerts</h2>
+                <div id="alerts-panel" class="bg-white p-4 rounded-xl card-shadow overflow-y-auto max-h-[600px] border-t-4 border-danger">
+                    <!-- Alerts will be injected here -->
+                    <p id="no-alerts-message" class="text-sm text-gray-500 italic">No critical issues detected.</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // Global state for devices and timer
+        let devices = [];
+        let alerts = [];
+        let refreshTimer = null;
+        let deviceCounter = 0;
+
+        const deviceGrid = document.getElementById('device-grid');
+        const alertsPanel = document.getElementById('alerts-panel');
+        const refreshSelect = document.getElementById('refresh-interval');
+        const statOnline = document.getElementById('stat-online');
+        const statAlerts = document.getElementById('stat-alerts');
+        const noDevicesMessage = document.getElementById('no-devices-message');
+        const noAlertsMessage = document.getElementById('no-alerts-message');
+        
+        const deviceTypes = [
+            { name: "Smart Thermostat", icon: getIconSvg('thermometer'), readingLabel: "Temp", unit: "°C", alertCondition: (r) => r.value > 30 || r.value < 15 },
+            { name: "Motion Detector", icon: getIconSvg('motion'), readingLabel: "Activity", unit: "", alertCondition: (r) => r.value > 0.8 && r.value < 1 },
+            { name: "Smart Light Bulb", icon: getIconSvg('light'), readingLabel: "Lux", unit: "lm", alertCondition: (r) => r.value < 10 && r.value > 0 },
+            { name: "Air Quality Sensor", icon: getIconSvg('air'), readingLabel: "CO2", unit: "ppm", alertCondition: (r) => r.value > 800 },
+        ];
+
+        /**
+         * Utility function to generate SVG icons.
+         * @param {string} type - The icon type ('thermometer', 'motion', 'light', 'air', 'battery', 'time', 'power', 'refresh').
+         * @returns {string} SVG string.
+         */
+        function getIconSvg(type, statusColor = 'text-gray-400') {
+            switch (type) {
+                case 'thermometer': return `<svg xmlns="http://www.w3.org/2000/svg" class="icon-small ${statusColor}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path></svg>`;
+                case 'motion': return `<svg xmlns="http://www.w3.org/2000/svg" class="icon-small ${statusColor}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>`;
+                case 'light': return `<svg xmlns="http://www.w3.org/2000/svg" class="icon-small ${statusColor}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.2.6-.4 1.3-.7 2-.8 1-.2 1.9-.9 2.4-2 .5-1.1.5-2.5-.2-3.4-.6-.8-1.5-1.2-2.3-1.4-.7-.2-1.3-.3-2-.3-2 0-3.5 1.5-4 4-.1.7-.1 1.4-.2 2.1-1.3.4-2.5 1.2-3.6 2.1-.8.7-1.5 1.5-2 2.4-.4.9-.6 1.9-.6 3 0 1.1.3 2.1.8 3 1.1 1.8 3.5 3 6 3s4.9-1.2 6-3c.5-.9.8-1.9.8-3 0-1.2-.3-2.3-.8-3.3z"></path></svg>`;
+                case 'air': return `<svg xmlns="http://www.w3.org/2000/svg" class="icon-small ${statusColor}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5h2a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3h-2m-8-12H5a3 3 0 0 0-3 3v6a3 3 0 0 0 3 3h2"></path></svg>`;
+                case 'battery': return `<svg xmlns="http://www.w3.org/2000/svg" class="icon-small ${statusColor}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="7" width="18" height="10" rx="2" ry="2"></rect><line x1="22" y1="12" x2="23" y2="12"></line></svg>`;
+                case 'time': return `<svg xmlns="http://www.w3.org/2000/svg" class="icon-small ${statusColor}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`;
+                case 'power': return `<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>`;
+                case 'refresh': return `<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6m6 0l-4-4m-1 10a9 9 0 1 1-6.7-14.8"></path><path d="M2.5 22v-6h6m-6 0l4 4"></path></svg>`;
+                case 'delete': return `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
+                default: return '';
+            }
+        }
+        
+        /**
+         * Generates random sensor reading based on device type.
+         * @param {object} type - The device type object.
+         * @returns {object} { value, unit }
+         */
+        function generateRandomReading(type) {
+            let value;
+            switch (type.name) {
+                case "Smart Thermostat":
+                    // Temp between 10 and 40
+                    value = (Math.random() * 30 + 10).toFixed(1); 
+                    break;
+                case "Motion Detector":
+                    // Activity: 0 (no motion) to 1 (full motion)
+                    value = (Math.random() * 0.5 + (Math.random() > 0.9 ? 0.5 : 0)).toFixed(2);
+                    break;
+                case "Smart Light Bulb":
+                    // Lux between 0 and 500
+                    value = Math.floor(Math.random() * 500); 
+                    break;
+                case "Air Quality Sensor":
+                    // CO2 between 400 and 1200
+                    value = Math.floor(Math.random() * 800 + 400); 
+                    break;
+                default:
+                    value = (Math.random() * 100).toFixed(0);
+            }
+            return { value: parseFloat(value), unit: type.unit };
+        }
+
+        /**
+         * Adds a new demo device to the state.
+         */
+        function addDemoDevice() {
+            deviceCounter++;
+            const typeIndex = Math.floor(Math.random() * deviceTypes.length);
+            const type = deviceTypes[typeIndex];
+
+            const newDevice = {
+                id: `dev-${Date.now()}-${deviceCounter}`,
+                name: `${type.name} ${deviceCounter}`,
+                type: type,
+                isOnline: Math.random() > 0.1, // 90% chance of starting online
+                isOn: Math.random() > 0.5, // 50% chance of starting on
+                batteryLevel: Math.floor(Math.random() * 100) + 1,
+                lastUpdateTime: new Date().toISOString(),
+                sensorReading: generateRandomReading(type),
+                isAlert: false,
+            };
+
+            // Initial check for alert state
+            updateDeviceAlertState(newDevice);
+
+            devices.push(newDevice);
+            renderDashboard();
+        }
+
+        /**
+         * Updates the sensor reading and alert status for a single device.
+         * @param {object} device - The device object to update.
+         */
+        function updateDeviceData(device) {
+            if (!device.isOnline) {
+                device.sensorReading = { value: 'N/A', unit: device.type.unit };
+                device.batteryLevel = device.batteryLevel; // Battery doesn't change if offline (for simplicity)
+                device.lastUpdateTime = new Date().toISOString();
+                device.isAlert = false; // Cannot alert if offline
+                return;
+            }
+
+            // Update sensor reading
+            device.sensorReading = generateRandomReading(device.type);
+            
+            // Randomly decrease battery
+            device.batteryLevel = Math.max(0, device.batteryLevel - Math.floor(Math.random() * 3));
+            
+            // Update timestamp
+            device.lastUpdateTime = new Date().toISOString();
+
+            // Check and update alert status
+            updateDeviceAlertState(device);
+        }
+
+        /**
+         * Checks the device's sensor reading against its type's alert condition.
+         * @param {object} device - The device object.
+         */
+        function updateDeviceAlertState(device) {
+            const readingValue = device.sensorReading.value;
+            const wasAlert = device.isAlert;
+
+            if (device.type.alertCondition && device.isOnline && typeof readingValue === 'number') {
+                device.isAlert = device.type.alertCondition(device.sensorReading);
+            } else {
+                device.isAlert = false;
+            }
+
+            // If alert status changed, update the global alerts list
+            if (device.isAlert && !wasAlert) {
+                addAlert(device.id, `${device.name}: Critical reading of ${readingValue}${device.type.unit}.`);
+            } else if (!device.isAlert && wasAlert) {
+                // Remove solved alert
+                alerts = alerts.filter(a => a.deviceId !== device.id);
+            }
+        }
+
+        /**
+         * Toggles the power state (on/off) of a device.
+         * @param {string} deviceId - ID of the device.
+         */
+        function toggleDevicePower(deviceId) {
+            const device = devices.find(d => d.id === deviceId);
+            if (device) {
+                device.isOn = !device.isOn;
+                // If device is turned off, force its online status off too
+                if (!device.isOn) {
+                    device.isOnline = false;
+                } else {
+                    // Simulate reconnecting when powered back on
+                    device.isOnline = Math.random() > 0.1; 
+                }
+                updateDeviceData(device); // Immediate update
+                renderDashboard();
+            }
+        }
+        
+        /**
+         * Toggles the online/offline status of a device.
+         * @param {string} deviceId - ID of the device.
+         */
+        function toggleDeviceOnlineStatus(deviceId) {
+            const device = devices.find(d => d.id === deviceId);
+            if (device) {
+                device.isOnline = !device.isOnline;
+                // If device goes offline, force its power state to off for control simulation
+                if (!device.isOnline) {
+                    device.isOn = false;
+                }
+                updateDeviceData(device);
+                renderDashboard();
+            }
+        }
+
+        /**
+         * Simulates a device reboot.
+         * @param {string} deviceId - ID of the device.
+         */
+        function rebootDevice(deviceId) {
+            const device = devices.find(d => d.id === deviceId);
+            if (device) {
+                addAlert(deviceId, `${device.name} is rebooting...`);
+                // Simulate reboot delay and then bring it back online (and on)
+                setTimeout(() => {
+                    device.isOnline = true;
+                    device.isOn = true;
+                    device.batteryLevel = Math.min(100, device.batteryLevel + 5); // Small charge boost
+                    updateDeviceData(device);
+                    // Remove the reboot alert
+                    alerts = alerts.filter(a => a.deviceId !== deviceId || a.message.indexOf('rebooting') === -1);
+                    addAlert(deviceId, `${device.name} successfully rebooted.`);
+                    setTimeout(() => {
+                        // Remove the success alert after a short time
+                        alerts = alerts.filter(a => a.deviceId !== deviceId || a.message.indexOf('rebooted') === -1);
+                        renderDashboard();
+                    }, 5000);
+                    renderDashboard();
+                }, 2000);
+            }
+        }
+        
+        /**
+         * Deletes a device from the state.
+         * @param {string} deviceId - ID of the device.
+         */
+        function deleteDevice(deviceId) {
+            devices = devices.filter(d => d.id !== deviceId);
+            alerts = alerts.filter(a => a.deviceId !== deviceId);
+            renderDashboard();
+        }
+
+        /**
+         * Adds an alert to the global state.
+         * @param {string} deviceId - The ID of the device triggering the alert.
+         * @param {string} message - The alert message.
+         */
+        function addAlert(deviceId, message) {
+            const newAlert = {
+                id: crypto.randomUUID(),
+                deviceId: deviceId,
+                timestamp: new Date().toLocaleTimeString(),
+                message: message,
+            };
+            // Add to the start of the list
+            alerts.unshift(newAlert); 
+            // Keep the alerts list limited in size
+            if (alerts.length > 10) {
+                alerts.pop();
+            }
+        }
+
+        /**
+         * Converts ISO string to a user-friendly format (local time).
+         * @param {string} isoString - The ISO date string.
+         * @returns {string} Formatted time string.
+         */
+        function formatTime(isoString) {
+            if (!isoString) return 'N/A';
+            const date = new Date(isoString);
+            return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        }
+
+        /**
+         * Renders all device cards, summary statistics, and alerts.
+         */
+        function renderDashboard() {
+            // --- 1. Render Device Grid ---
+            if (devices.length === 0) {
+                deviceGrid.innerHTML = `<p id="no-devices-message" class="text-center text-gray-500 col-span-full py-8 italic">No devices added yet. Click "Add Demo Device" to begin.</p>`;
+            } else {
+                deviceGrid.innerHTML = devices.map(device => {
+                    const statusClass = device.isOnline ? 'bg-secondary status-online' : 'bg-danger status-offline';
+                    const batteryColor = device.batteryLevel > 30 ? 'text-secondary' : 
+                                         device.batteryLevel > 15 ? 'text-yellow-500' : 'text-danger';
+                    const cardBorderColor = device.isAlert ? 'border-danger' : 'border-primary';
+
+                    return `
+                        <div id="${device.id}" class="bg-white p-6 rounded-xl card-shadow border-t-8 ${cardBorderColor} transition-transform hover:scale-[1.01] duration-200">
+                            <!-- Header and Status -->
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 class="text-xl font-bold text-gray-800 flex items-center">
+                                        ${device.type.icon.replace('text-gray-400', 'text-primary')}
+                                        <span class="ml-2">${device.name}</span>
+                                    </h3>
+                                    <p class="text-sm font-medium text-gray-500">${device.type.name}</p>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="px-3 py-1 text-xs font-semibold rounded-full text-white ${statusClass} flex items-center">
+                                        <span class="w-2 h-2 rounded-full mr-1 ${statusClass.includes('online') ? 'bg-white' : 'bg-white'}"></span>
+                                        ${device.isOnline ? 'Online' : 'Offline'}
+                                    </span>
+                                    <!-- Delete Button -->
+                                    <button onclick="deleteDevice('${device.id}')" title="Delete Device" class="text-gray-400 hover:text-danger p-1 rounded-full hover:bg-red-50 transition duration-150">
+                                        ${getIconSvg('delete')}
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Key Metrics -->
+                            <div class="grid grid-cols-2 gap-4 border-t border-gray-100 pt-4">
+                                <!-- Sensor Reading -->
+                                <div class="flex flex-col">
+                                    <p class="text-sm font-medium text-gray-500">${device.type.readingLabel}</p>
+                                    <p class="text-3xl font-extrabold ${device.isAlert ? 'text-danger' : 'text-gray-900'}">
+                                        ${device.sensorReading.value}
+                                        <span class="text-lg font-semibold text-gray-500">${device.sensorReading.unit}</span>
+                                    </p>
+                                    ${device.isAlert ? '<p class="text-xs text-danger font-semibold mt-1">CRITICAL THRESHOLD</p>' : ''}
+                                </div>
+                                
+                                <!-- Battery and Time -->
+                                <div class="flex flex-col space-y-2">
+                                    <div class="flex items-center justify-start text-sm font-medium ${batteryColor}">
+                                        ${getIconSvg('battery', batteryColor)}
+                                        <span class="ml-1">Battery: ${device.batteryLevel}%</span>
+                                    </div>
+                                    <div class="flex items-center justify-start text-sm text-gray-500">
+                                        ${getIconSvg('time', 'text-gray-500')}
+                                        <span class="ml-1">Updated: ${formatTime(device.lastUpdateTime)}</span>
+                                    </div>
+                                    <div class="flex items-center justify-start text-sm font-medium ${device.isOn ? 'text-secondary' : 'text-gray-500'}">
+                                        ${getIconSvg('power', device.isOn ? 'text-secondary' : 'text-gray-500')}
+                                        <span class="ml-1">Power: ${device.isOn ? 'ON' : 'OFF'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Controls -->
+                            <div class="mt-5 pt-4 border-t border-gray-100 flex space-x-3">
+                                <button onclick="toggleDevicePower('${device.id}')" ${!device.isOnline ? 'disabled' : ''} class="flex-1 transition-all duration-150 ease-in-out font-medium py-2 rounded-lg ${device.isOnline 
+                                    ? (device.isOn ? 'bg-yellow-500 text-white hover:bg-yellow-600' : 'bg-secondary text-white hover:bg-green-600') 
+                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                }">
+                                    ${device.isOn ? 'Turn OFF' : 'Turn ON'}
+                                </button>
+                                <button onclick="rebootDevice('${device.id}')" ${!device.isOnline ? 'disabled' : ''} class="flex-1 bg-primary text-white font-medium py-2 rounded-lg hover:bg-blue-600 transition duration-150 ${!device.isOnline ? 'opacity-50 cursor-not-allowed' : ''}">
+                                    Reboot
+                                </button>
+                                <button onclick="toggleDeviceOnlineStatus('${device.id}')" class="text-sm font-medium py-2 px-3 rounded-lg border transition duration-150 ${device.isOnline ? 'border-danger text-danger hover:bg-red-50' : 'border-gray-400 text-gray-600 hover:bg-gray-100'}">
+                                    ${device.isOnline ? 'Go Offline' : 'Go Online'}
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+
+            // --- 2. Update Summary Statistics ---
+            const onlineCount = devices.filter(d => d.isOnline).length;
+            const alertCount = alerts.filter(a => a.message.indexOf('Critical') !== -1).length;
+            
+            statOnline.textContent = `${onlineCount} / ${devices.length}`;
+            statAlerts.textContent = alertCount;
+
+
+            // --- 3. Render Alerts Panel ---
+            if (alerts.length === 0) {
+                alertsPanel.innerHTML = `<p id="no-alerts-message" class="text-sm text-gray-500 italic">No critical issues detected.</p>`;
+            } else {
+                alertsPanel.innerHTML = alerts.map(alert => `
+                    <div class="p-3 mb-2 rounded-lg bg-red-100 border border-danger text-sm">
+                        <p class="font-bold text-danger">${alert.timestamp}</p>
+                        <p class="text-gray-800 mt-1">${alert.message}</p>
+                    </div>
+                `).join('');
+            }
+        }
+
+        /**
+         * Initializes and manages the auto-refresh timer.
+         */
+        function setupAutoRefresh() {
+            // Clear existing timer
+            if (refreshTimer) {
+                clearInterval(refreshTimer);
+                refreshTimer = null;
+            }
+
+            const interval = parseInt(refreshSelect.value) * 1000; // Convert seconds to milliseconds
+
+            if (interval > 0) {
+                console.log(`Auto-refresh set to ${interval / 1000} seconds.`);
+                
+                // Function to run on each tick
+                const refreshFunction = () => {
+                    console.log('Auto-refreshing device data...');
+                    devices.forEach(updateDeviceData);
+                    renderDashboard();
+                };
+
+                // Run once immediately upon setup
+                refreshFunction();
+
+                // Set the interval timer
+                refreshTimer = setInterval(refreshFunction, interval);
+            } else {
+                console.log('Auto-refresh disabled.');
+            }
+        }
+
+        // --- Event Listeners and Initialization ---
+
+        // Listen for changes in the refresh interval selector
+        refreshSelect.addEventListener('change', setupAutoRefresh);
+        
+        // Initial setup on load
+        window.onload = () => {
+            // Add a couple of initial demo devices
+            addDemoDevice();
+            addDemoDevice();
+            addDemoDevice();
+
+            // Start the auto-refresh system
+            setupAutoRefresh();
+
+            // Make global functions accessible for inline events
+            window.toggleDevicePower = toggleDevicePower;
+            window.rebootDevice = rebootDevice;
+            window.addDemoDevice = addDemoDevice;
+            window.deleteDevice = deleteDevice;
+            window.toggleDeviceOnlineStatus = toggleDeviceOnlineStatus;
+        };
+    </script>
+</body>
+</html>
